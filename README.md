@@ -1,4 +1,8 @@
-# pytorch-a3c
+# a3c-grid2op
+
+Adapted from [ikostrikov/pytorch-a3c](https://github.com/ikostrikov/pytorch-a3c). For use in [Grid2op](https://github.com/rte-france/Grid2Op).
+
+# ---original readme below---
 
 This is a PyTorch implementation of Asynchronous Advantage Actor Critic (A3C) from ["Asynchronous Methods for Deep Reinforcement Learning"](https://arxiv.org/pdf/1602.01783v1.pdf).
 
