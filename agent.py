@@ -6,13 +6,32 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.multiprocessing as mp
 
-from envs import create_atari_env
+import grid2op
+from grid2op.Agent import AgentWithConverter
+from grid2op.Converter import IdToAct
+
 from model import ActorCritic
 import my_optim
 
-class a3cAgent():
-    def __init__(self, args):
+class a3cAgent(AgentWithConverter):
+    def __init__(self, action_space, args):
+        super().__init__(action_space, action_space_converter=IdToAct)
         self.args=args
+
+    def convert_obs(self, observation):
+        obs_vec = observation.to_vect()
+        return obs_vec
+
+    def my_act(self, transformed_obs, reward=None, done=False, model=None, hx=None, cx=None):
+        action = self.select_action(transformed_obs, model, hx, cx)
+
+        return action
+
+    def select_action(self, obs, model, hx, cx):
+        value, logit, (hx, cx) = model((obs.unsqueeze(0),(hx, cx)))
+        prob = F.softmax(logit, dim=-1)
+        action = prob.multinomial(num_samples=1).detach()
+        return action
 
     def ensure_shared_grads(self, model, shared_model):
         for param, shared_param in zip(model.parameters(),
@@ -25,17 +44,17 @@ class a3cAgent():
     def do_train(self, rank, args, shared_model, counter, lock, optimizer=None):
         torch.manual_seed(args.seed + rank)
 
-        env = create_atari_env(args.env_name)
+        env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.shape[0], env.action_space)
+        model = ActorCritic(env.observation_space.size(), env.action_space)
 
         if optimizer is None:
             optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
 
         model.train()
 
-        state = env.reset()
+        state = self.convert_obs(env.reset())
         state = torch.from_numpy(state)
         done = True
 
@@ -57,8 +76,7 @@ class a3cAgent():
 
             for step in range(args.num_steps):
                 episode_length += 1
-                value, logit, (hx, cx) = model((state.unsqueeze(0),
-                                                (hx, cx)))
+                value, logit, (hx, cx) = model((state.unsqueeze(0),(hx, cx)))
                 prob = F.softmax(logit, dim=-1)
                 log_prob = F.log_softmax(logit, dim=-1)
                 entropy = -(log_prob * prob).sum(1, keepdim=True)
@@ -67,7 +85,8 @@ class a3cAgent():
                 action = prob.multinomial(num_samples=1).detach()
                 log_prob = log_prob.gather(1, action)
 
-                state, reward, done, _ = env.step(action.numpy())
+                state, reward, done, _ = env.step(self.convert_act(action.numpy()))
+                state = self.convert_obs(state)
                 done = done or episode_length >= args.max_episode_length
                 reward = max(min(reward, 1), -1)
 
@@ -76,7 +95,7 @@ class a3cAgent():
 
                 if done:
                     episode_length = 0
-                    state = env.reset()
+                    state = self.convert_obs(env.reset())
 
                 state = torch.from_numpy(state)
                 values.append(value)
@@ -119,14 +138,14 @@ class a3cAgent():
     def do_test(self, rank, args, shared_model, counter):
         torch.manual_seed(args.seed + rank)
 
-        env = create_atari_env(args.env_name)
+        env = env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.shape[0], env.action_space)
+        model = ActorCritic(env.observation_space.size(), env.action_space)
 
         model.eval()
 
-        state = env.reset()
+        state = self.convert_obs(env.reset())
         state = torch.from_numpy(state)
         reward_sum = 0
         done = True
@@ -153,6 +172,7 @@ class a3cAgent():
             action = prob.max(1, keepdim=True)[1].numpy()
 
             state, reward, done, _ = env.step(action[0, 0])
+            state = self.convert_obs(state)
             done = done or episode_length >= args.max_episode_length
             reward_sum += reward
 
@@ -170,7 +190,7 @@ class a3cAgent():
                 reward_sum = 0
                 episode_length = 0
                 actions.clear()
-                state = env.reset()
+                state = self.convert_obs(env.reset())
                 time.sleep(60)
 
             state = torch.from_numpy(state)
@@ -178,8 +198,8 @@ class a3cAgent():
     def train(self):
         args=self.args
         torch.manual_seed(args.seed)
-        env = create_atari_env(args.env_name)
-        shared_model = ActorCritic(env.observation_space.shape[0], env.action_space)
+        env = env = grid2op.make(args.env_name, test=args.for_test)
+        shared_model = ActorCritic(env.observation_space.size(), env.action_space)
         shared_model.share_memory()
 
         if args.no_shared:

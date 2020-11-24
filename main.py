@@ -2,6 +2,9 @@ from __future__ import print_function
 
 import argparse
 import os
+
+import grid2op
+
 from agent import a3cAgent
 
 # Based on
@@ -28,17 +31,20 @@ parser.add_argument('--num-steps', type=int, default=20,
                     help='number of forward steps in A3C (default: 20)')
 parser.add_argument('--max-episode-length', type=int, default=1000000,
                     help='maximum length of an episode (default: 1000000)')
-parser.add_argument('--env-name', default='PongDeterministic-v4',
-                    help='environment to train on (default: PongDeterministic-v4)')
+parser.add_argument('--env-name', default='l2rpn_neurips_2020_track1_small',
+                    help='environment to train on (default: l2rpn_neurips_2020_track1_small)')
 parser.add_argument('--no-shared', default=False,
                     help='use an optimizer without shared momentum.')
-
+parser.add_argument('--for-test', default=False,
+                    help='do testing with very small data instead of real data.')
 
 if __name__ == '__main__':
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
     args = parser.parse_args()
-    agent = a3cAgent(args)
+    env = grid2op.make(args.env_name, test=args.for_test)
+
+    agent = a3cAgent(env.action_space, args)
     agent.train()
 
