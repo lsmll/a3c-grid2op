@@ -138,7 +138,7 @@ class a3cAgent(AgentWithConverter):
     def do_test(self, rank, args, shared_model, counter):
         torch.manual_seed(args.seed + rank)
 
-        env = env = grid2op.make(args.env_name, test=args.for_test)
+        env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
         model = ActorCritic(env.observation_space.size(), env.action_space)
