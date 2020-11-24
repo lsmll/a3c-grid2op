@@ -85,7 +85,7 @@ class a3cAgent(AgentWithConverter):
                 action = prob.multinomial(num_samples=1).detach()
                 log_prob = log_prob.gather(1, action)
 
-                state, reward, done, _ = env.step(self.convert_act(action.numpy()))
+                state, reward, done, _ = env.step(self.convert_act(action[0,0]))
                 state = self.convert_obs(state)
                 done = done or episode_length >= args.max_episode_length
                 reward = max(min(reward, 1), -1)
@@ -171,7 +171,7 @@ class a3cAgent(AgentWithConverter):
             prob = F.softmax(logit, dim=-1)
             action = prob.max(1, keepdim=True)[1].numpy()
 
-            state, reward, done, _ = env.step(action[0, 0])
+            state, reward, done, _ = env.step(self.convert_act(action[0,0]))
             state = self.convert_obs(state)
             done = done or episode_length >= args.max_episode_length
             reward_sum += reward
@@ -182,10 +182,9 @@ class a3cAgent(AgentWithConverter):
                 done = True
 
             if done:
-                print("Time {}, num steps {}, FPS {:.0f}, episode reward {}, episode length {}".format(
-                    time.strftime("%Hh %Mm %Ss",
-                                time.gmtime(time.time() - start_time)),
-                    counter.value, counter.value / (time.time() - start_time),
+                print("Time {}, num steps {}, episode reward {}, episode length {}".format(
+                    time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_time)),
+                    counter.value,
                     reward_sum, episode_length))
                 reward_sum = 0
                 episode_length = 0
