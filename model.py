@@ -29,18 +29,18 @@ def weights_init(m):
 
 
 class ActorCritic(torch.nn.Module):
-    def __init__(self, num_inputs, action_space):
+    def __init__(self, num_inputs, action_space, hsize):
         super(ActorCritic, self).__init__()
-        self.l1 = nn.Linear(num_inputs, 256)
-        self.l2 = nn.Linear(256, 256)
-        self.l3 = nn.Linear(256, 256)
-        self.l4 = nn.Linear(256, 256)
+        self.l1 = nn.Linear(num_inputs, hsize)
+        self.l2 = nn.Linear(hsize, hsize)
+        self.l3 = nn.Linear(hsize, hsize)
+        self.l4 = nn.Linear(hsize, hsize)
 
-        self.lstm = nn.LSTMCell(256, 256)
+        self.lstm = nn.LSTMCell(hsize, hsize)
 
         num_outputs = action_space.n
-        self.critic_linear = nn.Linear(256, 1)
-        self.actor_linear = nn.Linear(256, num_outputs)
+        self.critic_linear = nn.Linear(hsize, 1)
+        self.actor_linear = nn.Linear(hsize, num_outputs)
 
         self.apply(weights_init)
         self.actor_linear.weight.data = normalized_columns_initializer(

@@ -47,7 +47,7 @@ class a3cAgent(AgentWithConverter):
         env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.size(), env.action_space)
+        model = ActorCritic(env.observation_space.size(), env.action_space, args.hidden_size)
 
         if optimizer is None:
             optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
@@ -63,8 +63,8 @@ class a3cAgent(AgentWithConverter):
             # Sync with the shared model
             model.load_state_dict(shared_model.state_dict())
             if done:
-                cx = torch.zeros(1, 256)
-                hx = torch.zeros(1, 256)
+                cx = torch.zeros(1, args.hidden_size)
+                hx = torch.zeros(1, args.hidden_size)
             else:
                 cx = cx.detach()
                 hx = hx.detach()
@@ -141,7 +141,7 @@ class a3cAgent(AgentWithConverter):
         env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.size(), env.action_space)
+        model = ActorCritic(env.observation_space.size(), env.action_space, args.hidden_size)
 
         model.eval()
 
@@ -160,8 +160,8 @@ class a3cAgent(AgentWithConverter):
             # Sync with the shared model
             if done:
                 model.load_state_dict(shared_model.state_dict())
-                cx = torch.zeros(1, 256)
-                hx = torch.zeros(1, 256)
+                cx = torch.zeros(1, args.hidden_size)
+                hx = torch.zeros(1, args.hidden_size)
             else:
                 cx = cx.detach()
                 hx = hx.detach()
@@ -185,7 +185,7 @@ class a3cAgent(AgentWithConverter):
                 print("Time {}, num steps {}, episode reward {}, episode length {}".format(
                     time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_time)),
                     counter.value,
-                    reward_sum, episode_length))
+                    reward_sum, episode_length), flush=True)
                 reward_sum = 0
                 episode_length = 0
                 actions.clear()
@@ -198,7 +198,7 @@ class a3cAgent(AgentWithConverter):
         args=self.args
         torch.manual_seed(args.seed)
         env = env = grid2op.make(args.env_name, test=args.for_test)
-        shared_model = ActorCritic(env.observation_space.size(), env.action_space)
+        shared_model = ActorCritic(env.observation_space.size(), env.action_space, args.hidden_size)
         shared_model.share_memory()
 
         if args.no_shared:
