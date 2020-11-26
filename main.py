@@ -31,7 +31,7 @@ parser.add_argument('--num-steps', type=int, default=20,
                     help='number of forward steps in A3C (default: 20)')
 parser.add_argument('--max-episode-length', type=int, default=1000000,
                     help='maximum length of an episode (default: 1000000)')
-parser.add_argument('--hidden-size', default=4096,
+parser.add_argument('--hidden-size', type=int, default=4096,
                     help='hidden layer size (default=4096)')
 parser.add_argument('--env-name', default='l2rpn_neurips_2020_track1_small',
                     help='environment to train on (default: l2rpn_neurips_2020_track1_small)')
