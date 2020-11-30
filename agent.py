@@ -28,7 +28,7 @@ class a3cAgent(AgentWithConverter):
         return action
 
     def select_action(self, obs, model, hx, cx):
-        value, logit, (hx, cx) = model((obs.unsqueeze(0),(hx, cx)))
+        _, logit, (hx, cx) = model((obs.unsqueeze(0),(hx, cx)))
         prob = F.softmax(logit, dim=-1)
         action = prob.multinomial(num_samples=1).detach()
         return action
@@ -167,7 +167,7 @@ class a3cAgent(AgentWithConverter):
                 hx = hx.detach()
 
             with torch.no_grad():
-                value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
+                _, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
             prob = F.softmax(logit, dim=-1)
             action = prob.max(1, keepdim=True)[1].numpy()
 
