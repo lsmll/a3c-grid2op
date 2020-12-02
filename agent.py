@@ -16,7 +16,26 @@ import my_optim
 class a3cAgent(AgentWithConverter):
     def __init__(self, action_space, args):
         super().__init__(action_space, action_space_converter=IdToAct)
+        #print('Filtering actions..')
+        self.action_space.filter_action(self._filter_action)
+        #print('Done')
         self.args=args
+
+    def _filter_action(self, action):
+        MAX_ELEM = 2
+        act_dict = action.impact_on_objects()
+        elem = 0
+        elem += act_dict["force_line"]["reconnections"]["count"]
+        elem += act_dict["force_line"]["disconnections"]["count"]
+        elem += act_dict["switch_line"]["count"]
+        elem += len(act_dict["topology"]["bus_switch"])
+        elem += len(act_dict["topology"]["assigned_bus"])
+        elem += len(act_dict["topology"]["disconnect_bus"])
+        elem += len(act_dict["redispatch"]["generators"])
+
+        if elem <= MAX_ELEM:
+            return True
+        return False
 
     def convert_obs(self, observation):
         obs_vec = observation.to_vect()
@@ -47,7 +66,7 @@ class a3cAgent(AgentWithConverter):
         env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.size(), env.action_space, args.hidden_size)
+        model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
 
         if optimizer is None:
             optimizer = optim.Adam(shared_model.parameters(), lr=args.lr)
@@ -141,7 +160,7 @@ class a3cAgent(AgentWithConverter):
         env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
-        model = ActorCritic(env.observation_space.size(), env.action_space, args.hidden_size)
+        model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
 
         model.eval()
 
@@ -198,7 +217,7 @@ class a3cAgent(AgentWithConverter):
         args=self.args
         torch.manual_seed(args.seed)
         env = env = grid2op.make(args.env_name, test=args.for_test)
-        shared_model = ActorCritic(env.observation_space.size(), env.action_space, args.hidden_size)
+        shared_model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
         shared_model.share_memory()
 
         if args.no_shared:
