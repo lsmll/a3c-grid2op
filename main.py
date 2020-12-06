@@ -39,6 +39,8 @@ parser.add_argument('--no-shared', default=False,
                     help='use an optimizer without shared momentum.')
 parser.add_argument('--for-test', default=False,
                     help='do testing with very small data instead of real data.')
+parser.add_argument('--run-name', default=None,
+                    help='tensorboard log dir name.')
 
 if __name__ == '__main__':
     os.environ['OMP_NUM_THREADS'] = '1'

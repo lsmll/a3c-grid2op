@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.multiprocessing as mp
+from torch.utils.tensorboard import SummaryWriter
 
 import grid2op
 from grid2op.Agent import AgentWithConverter
@@ -156,7 +157,13 @@ class a3cAgent(AgentWithConverter):
 
     def do_test(self, rank, args, shared_model, counter):
         torch.manual_seed(args.seed + rank)
+        if args.run_name is None:
+            rn=None
+        else:
+            rn='runs/'+args.run_name
+        writer = SummaryWriter(log_dir=rn, flush_secs=60)
 
+        cnt = 0
         env = grid2op.make(args.env_name, test=args.for_test)
         env.seed(args.seed + rank)
 
@@ -205,6 +212,12 @@ class a3cAgent(AgentWithConverter):
                     time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - start_time)),
                     counter.value,
                     reward_sum, episode_length), flush=True)
+
+                writer.add_scalar('Main/Reward', reward_sum, cnt)
+                writer.add_scalar('Main/Episode Length', episode_length, cnt)
+                writer.add_scalar('Stats/Global steps', counter.value, cnt)
+                cnt+=1
+
                 reward_sum = 0
                 episode_length = 0
                 actions.clear()
