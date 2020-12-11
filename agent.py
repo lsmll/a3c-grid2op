@@ -1,5 +1,5 @@
 import time
-from collections import deque
+#from collections import deque
 
 import torch
 import torch.nn.functional as F
@@ -15,12 +15,13 @@ from model import ActorCritic
 import my_optim
 
 class a3cAgent(AgentWithConverter):
-    def __init__(self, action_space, args):
+    def __init__(self, action_space, args, rwc):
         super().__init__(action_space, action_space_converter=IdToAct)
         #print('Filtering actions..')
         self.action_space.filter_action(self._filter_action)
         #print('Done')
         self.args=args
+        self.rwc=rwc
 
     def _filter_action(self, action):
         MAX_ELEM = 2
@@ -64,7 +65,7 @@ class a3cAgent(AgentWithConverter):
     def do_train(self, rank, args, shared_model, counter, lock, optimizer=None):
         torch.manual_seed(args.seed + rank)
 
-        env = grid2op.make(args.env_name, test=args.for_test)
+        env = grid2op.make(args.env_name, test=args.for_test, reward_class=self.rwc)
         env.seed(args.seed + rank)
 
         model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
@@ -164,7 +165,7 @@ class a3cAgent(AgentWithConverter):
         writer = SummaryWriter(log_dir=rn, flush_secs=60)
 
         cnt = 0
-        env = grid2op.make(args.env_name, test=args.for_test)
+        env = grid2op.make(args.env_name, test=args.for_test, reward_class=self.rwc)
         env.seed(args.seed + rank)
 
         model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
@@ -179,7 +180,7 @@ class a3cAgent(AgentWithConverter):
         start_time = time.time()
 
         # a quick hack to prevent the agent from stucking
-        actions = deque(maxlen=100)
+        #actions = deque(maxlen=100)
         episode_length = 0
         while True:
             episode_length += 1
@@ -203,9 +204,9 @@ class a3cAgent(AgentWithConverter):
             reward_sum += reward
 
             # a quick hack to prevent the agent from stucking
-            actions.append(action[0, 0])
-            if actions.count(actions[0]) == actions.maxlen:
-                done = True
+            #actions.append(action[0, 0])
+            #if actions.count(actions[0]) == actions.maxlen:
+            #    done = True
 
             if done:
                 print("Time {}, num steps {}, episode reward {}, episode length {}".format(
@@ -220,7 +221,7 @@ class a3cAgent(AgentWithConverter):
 
                 reward_sum = 0
                 episode_length = 0
-                actions.clear()
+                #actions.clear()
                 state = self.convert_obs(env.reset())
                 time.sleep(60)
 
@@ -229,7 +230,7 @@ class a3cAgent(AgentWithConverter):
     def train(self):
         args=self.args
         torch.manual_seed(args.seed)
-        env = env = grid2op.make(args.env_name, test=args.for_test)
+        env = env = grid2op.make(args.env_name, test=args.for_test, reward_class=self.rwc)
         shared_model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
         shared_model.share_memory()
 

@@ -6,6 +6,7 @@ import os
 import grid2op
 
 from agent import a3cAgent
+from grid2op.Reward import GameplayReward, L2RPNReward
 
 # Based on
 # https://github.com/pytorch/examples/tree/master/mnist_hogwild
@@ -46,8 +47,9 @@ if __name__ == '__main__':
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
+    rwc = GameplayReward
     args = parser.parse_args()
-    env = grid2op.make(args.env_name, test=args.for_test)
+    env = grid2op.make(args.env_name, test=args.for_test, reward_class=L2RPNReward)
 
-    agent = a3cAgent(env.action_space, args)
+    agent = a3cAgent(env.action_space, args, rwc)
     agent.train()
