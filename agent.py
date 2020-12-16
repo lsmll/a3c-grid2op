@@ -10,18 +10,19 @@ from torch.utils.tensorboard import SummaryWriter
 import grid2op
 from grid2op.Agent import AgentWithConverter
 from grid2op.Converter import IdToAct
+from grid2op.Reward import GameplayReward, L2RPNReward
 
 from model import ActorCritic
 import my_optim
 
 class a3cAgent(AgentWithConverter):
-    def __init__(self, action_space, args, rwc):
+    def __init__(self, action_space, args):
         super().__init__(action_space, action_space_converter=IdToAct)
         #print('Filtering actions..')
         self.action_space.filter_action(self._filter_action)
         #print('Done')
         self.args=args
-        self.rwc=rwc
+
 
     def _filter_action(self, action):
         MAX_ELEM = 2
@@ -65,7 +66,7 @@ class a3cAgent(AgentWithConverter):
     def do_train(self, rank, args, shared_model, counter, lock, optimizer=None):
         torch.manual_seed(args.seed + rank)
 
-        env = grid2op.make(args.env_name, test=args.for_test, reward_class=self.rwc)
+        env = grid2op.make(args.env_name, test=args.for_test, reward_class=L2RPNReward)
         env.seed(args.seed + rank)
 
         model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
@@ -165,7 +166,7 @@ class a3cAgent(AgentWithConverter):
         writer = SummaryWriter(log_dir=rn, flush_secs=60)
 
         cnt = 0
-        env = grid2op.make(args.env_name, test=args.for_test, reward_class=self.rwc)
+        env = grid2op.make(args.env_name, test=args.for_test, reward_class=L2RPNReward)
         env.seed(args.seed + rank)
 
         model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
@@ -223,14 +224,14 @@ class a3cAgent(AgentWithConverter):
                 episode_length = 0
                 #actions.clear()
                 state = self.convert_obs(env.reset())
-                time.sleep(60)
+                time.sleep(args.test_interval)
 
             state = torch.from_numpy(state)
 
     def train(self):
         args=self.args
         torch.manual_seed(args.seed)
-        env = env = grid2op.make(args.env_name, test=args.for_test, reward_class=self.rwc)
+        env = env = grid2op.make(args.env_name, test=args.for_test, reward_class=L2RPNReward)
         shared_model = ActorCritic(env.observation_space.size(), self.action_space, args.hidden_size)
         shared_model.share_memory()
 

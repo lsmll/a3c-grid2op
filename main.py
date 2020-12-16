@@ -42,14 +42,15 @@ parser.add_argument('--for-test', default=False,
                     help='do testing with very small data instead of real data.')
 parser.add_argument('--run-name', default=None,
                     help='tensorboard log dir name.')
+parser.add_argument('--test-interval', type=int, default=60,
+                    help='time in seconds between tests')
 
 if __name__ == '__main__':
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['CUDA_VISIBLE_DEVICES'] = ""
 
-    rwc = GameplayReward
     args = parser.parse_args()
     env = grid2op.make(args.env_name, test=args.for_test, reward_class=L2RPNReward)
 
-    agent = a3cAgent(env.action_space, args, rwc)
+    agent = a3cAgent(env.action_space, args)
     agent.train()
