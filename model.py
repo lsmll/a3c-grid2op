@@ -36,7 +36,7 @@ class ActorCritic(torch.nn.Module):
         self.l3 = nn.Linear(hsize, hsize)
         self.l4 = nn.Linear(hsize, hsize)
 
-        self.lstm = nn.LSTMCell(hsize, hsize)
+        #self.lstm = nn.LSTMCell(hsize, hsize)
 
         num_outputs = action_space.n
         self.critic_linear = nn.Linear(hsize, 1)
@@ -50,19 +50,19 @@ class ActorCritic(torch.nn.Module):
             self.critic_linear.weight.data, 1.0)
         self.critic_linear.bias.data.fill_(0)
 
-        self.lstm.bias_ih.data.fill_(0)
-        self.lstm.bias_hh.data.fill_(0)
+        #self.lstm.bias_ih.data.fill_(0)
+        #self.lstm.bias_hh.data.fill_(0)
 
         self.train()
 
     def forward(self, inputs):
-        inputs, (hx, cx) = inputs
-        x = F.elu(self.l1(inputs))
-        x = F.elu(self.l2(x))
-        x = F.elu(self.l3(x))
-        x = F.elu(self.l4(x))
+        #inputs, (hx, cx) = inputs
+        x = F.relu(self.l1(inputs))
+        x = F.relu(self.l2(x))
+        x = F.relu(self.l3(x))
+        x = F.relu(self.l4(x))
 
-        hx, cx = self.lstm(x, (hx, cx))
-        x = hx
+        #hx, cx = self.lstm(x, (hx, cx))
+        #x = hx
 
-        return self.critic_linear(x), self.actor_linear(x), (hx, cx)
+        return self.critic_linear(x), self.actor_linear(x) #, (hx, cx)

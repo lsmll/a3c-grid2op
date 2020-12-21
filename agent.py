@@ -44,13 +44,13 @@ class a3cAgent(AgentWithConverter):
         obs_vec = observation.to_vect()
         return obs_vec
 
-    def my_act(self, transformed_obs, reward=None, done=False, model=None, hx=None, cx=None):
-        action = self.select_action(transformed_obs, model, hx, cx)
+    def my_act(self, transformed_obs, reward=None, done=False, model=None):
+        action = self.select_action(transformed_obs, model)
 
         return action
 
-    def select_action(self, obs, model, hx, cx):
-        _, logit, (hx, cx) = model((obs.unsqueeze(0),(hx, cx)))
+    def select_action(self, obs, model):
+        _, logit = model((obs.unsqueeze(0)))
         prob = F.softmax(logit, dim=-1)
         action = prob.multinomial(num_samples=1).detach()
         return action
@@ -84,12 +84,6 @@ class a3cAgent(AgentWithConverter):
         while True:
             # Sync with the shared model
             model.load_state_dict(shared_model.state_dict())
-            if done:
-                cx = torch.zeros(1, args.hidden_size)
-                hx = torch.zeros(1, args.hidden_size)
-            else:
-                cx = cx.detach()
-                hx = hx.detach()
 
             values = []
             log_probs = []
@@ -98,7 +92,7 @@ class a3cAgent(AgentWithConverter):
 
             for step in range(args.num_steps):
                 episode_length += 1
-                value, logit, (hx, cx) = model((state.unsqueeze(0),(hx, cx)))
+                value, logit = model((state.unsqueeze(0)))
                 prob = F.softmax(logit, dim=-1)
                 log_prob = F.log_softmax(logit, dim=-1)
                 entropy = -(log_prob * prob).sum(1, keepdim=True)
@@ -129,7 +123,7 @@ class a3cAgent(AgentWithConverter):
 
             R = torch.zeros(1, 1)
             if not done:
-                value, _, _ = model((state.unsqueeze(0), (hx, cx)))
+                value, _ = model((state.unsqueeze(0)))
                 R = value.detach()
 
             values.append(R)
@@ -188,14 +182,9 @@ class a3cAgent(AgentWithConverter):
             # Sync with the shared model
             if done:
                 model.load_state_dict(shared_model.state_dict())
-                cx = torch.zeros(1, args.hidden_size)
-                hx = torch.zeros(1, args.hidden_size)
-            else:
-                cx = cx.detach()
-                hx = hx.detach()
 
             with torch.no_grad():
-                _, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
+                _, logit = model((state.unsqueeze(0)))
             prob = F.softmax(logit, dim=-1)
             action = prob.max(1, keepdim=True)[1].numpy()
 
