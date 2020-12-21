@@ -1,6 +1,7 @@
 import time
 #from collections import deque
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -22,6 +23,7 @@ class a3cAgent(AgentWithConverter):
         self.action_space.filter_action(self._filter_action)
         #print('Done')
         self.args=args
+        self.rhoth = 0.8
 
 
     def _filter_action(self, action):
@@ -76,8 +78,7 @@ class a3cAgent(AgentWithConverter):
 
         model.train()
 
-        state = self.convert_obs(env.reset())
-        state = torch.from_numpy(state)
+        state = env.reset()
         done = True
 
         episode_length = 0
@@ -89,41 +90,52 @@ class a3cAgent(AgentWithConverter):
             log_probs = []
             rewards = []
             entropies = []
+            cntrea = 0
 
             for step in range(args.num_steps):
                 episode_length += 1
-                value, logit = model((state.unsqueeze(0)))
-                prob = F.softmax(logit, dim=-1)
-                log_prob = F.log_softmax(logit, dim=-1)
-                entropy = -(log_prob * prob).sum(1, keepdim=True)
-                entropies.append(entropy)
+                if np.all(state.rho<self.rhoth):
+                    print('Safe:', state.rho)
+                    state, reward, done, _ = env.step(self.convert_act(0))
+                    reward = max(min(reward, 1), -1)
+                    cntrea += reward
+                else:
+                    print('Critical:', state.rho)
+                    cstate = torch.from_numpy(self.convert_obs(state))
+                    value, logit = model((cstate.unsqueeze(0)))
+                    prob = F.softmax(logit, dim=-1)
+                    log_prob = F.log_softmax(logit, dim=-1)
+                    entropy = -(log_prob * prob).sum(1, keepdim=True)
+                    entropies.append(entropy)
 
-                action = prob.multinomial(num_samples=1).detach()
-                log_prob = log_prob.gather(1, action)
+                    action = prob.multinomial(num_samples=1).detach()
+                    log_prob = log_prob.gather(1, action)
 
-                state, reward, done, _ = env.step(self.convert_act(action[0,0]))
-                state = self.convert_obs(state)
+                    state, reward, done, _ = env.step(self.convert_act(action[0,0]))
+
+                    reward = max(min(reward, 1), -1)
+                    cntrea += reward
+                    values.append(value)
+                    log_probs.append(log_prob)
+                    rewards.append(cntrea)
+                    cntrea=0
+
                 done = done or episode_length >= args.max_episode_length
-                reward = max(min(reward, 1), -1)
 
                 with lock:
                     counter.value += 1
 
                 if done:
                     episode_length = 0
-                    state = self.convert_obs(env.reset())
-
-                state = torch.from_numpy(state)
-                values.append(value)
-                log_probs.append(log_prob)
-                rewards.append(reward)
+                    state = env.reset()
 
                 if done:
                     break
 
             R = torch.zeros(1, 1)
             if not done:
-                value, _ = model((state.unsqueeze(0)))
+                cstate = torch.from_numpy(self.convert_obs(state))
+                value, _ = model((cstate.unsqueeze(0)))
                 R = value.detach()
 
             values.append(R)
@@ -167,15 +179,12 @@ class a3cAgent(AgentWithConverter):
 
         model.eval()
 
-        state = self.convert_obs(env.reset())
-        state = torch.from_numpy(state)
+        state = env.reset()
         reward_sum = 0
         done = True
 
         start_time = time.time()
 
-        # a quick hack to prevent the agent from stucking
-        #actions = deque(maxlen=100)
         episode_length = 0
         while True:
             episode_length += 1
@@ -183,20 +192,18 @@ class a3cAgent(AgentWithConverter):
             if done:
                 model.load_state_dict(shared_model.state_dict())
 
-            with torch.no_grad():
-                _, logit = model((state.unsqueeze(0)))
-            prob = F.softmax(logit, dim=-1)
-            action = prob.max(1, keepdim=True)[1].numpy()
+            if np.all(state.rho<self.rhoth):
+                state, reward, done, _ = env.step(self.convert_act(0))
+            else:
+                cstate = torch.from_numpy(self.convert_obs(state))
+                with torch.no_grad():
+                    _, logit = model((cstate.unsqueeze(0)))
+                prob = F.softmax(logit, dim=-1)
+                action = prob.max(1, keepdim=True)[1].numpy()
+                state, reward, done, _ = env.step(self.convert_act(action[0,0]))
 
-            state, reward, done, _ = env.step(self.convert_act(action[0,0]))
-            state = self.convert_obs(state)
             done = done or episode_length >= args.max_episode_length
             reward_sum += reward
-
-            # a quick hack to prevent the agent from stucking
-            #actions.append(action[0, 0])
-            #if actions.count(actions[0]) == actions.maxlen:
-            #    done = True
 
             if done:
                 print("Time {}, num steps {}, episode reward {}, episode length {}".format(
@@ -212,10 +219,9 @@ class a3cAgent(AgentWithConverter):
                 reward_sum = 0
                 episode_length = 0
                 #actions.clear()
-                state = self.convert_obs(env.reset())
+                state = env.reset()
                 time.sleep(args.test_interval)
 
-            state = torch.from_numpy(state)
 
     def train(self):
         args=self.args
