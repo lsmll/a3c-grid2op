@@ -57,6 +57,13 @@ class a3cAgent(AgentWithConverter):
         action = prob.multinomial(num_samples=1).detach()
         return action
 
+    def is_safe(self, env, obs):
+        thermal_limit = env._thermal_limit_a
+        for ratio, limit in zip(obs.rho, thermal_limit):
+            if (limit < 400.00 and ratio >= self.rhoth-0.05) or ratio >= self.rhoth:
+                return False
+        return True
+
     def ensure_shared_grads(self, model, shared_model):
         for param, shared_param in zip(model.parameters(),
                                     shared_model.parameters()):
@@ -91,16 +98,20 @@ class a3cAgent(AgentWithConverter):
             rewards = []
             entropies = []
             cntrea = 0
+            cntsteps = 0
 
-            for step in range(args.num_steps):
+            while cntsteps < args.num_steps:
+            #for step in range(args.num_steps):
                 episode_length += 1
+                #if self.is_safe(env, state):
                 if np.all(state.rho<self.rhoth):
-                    print('Safe:', state.rho)
+                    #print('Safe:', state.rho)
                     state, reward, done, _ = env.step(self.convert_act(0))
                     reward = max(min(reward, 1), -1)
                     cntrea += reward
                 else:
-                    print('Critical:', state.rho)
+                    #print('Critical:', state.rho)
+                    cntsteps += 1
                     cstate = torch.from_numpy(self.convert_obs(state))
                     value, logit = model((cstate.unsqueeze(0)))
                     prob = F.softmax(logit, dim=-1)
@@ -192,6 +203,7 @@ class a3cAgent(AgentWithConverter):
             if done:
                 model.load_state_dict(shared_model.state_dict())
 
+            #if self.is_safe(env, state):
             if np.all(state.rho<self.rhoth):
                 state, reward, done, _ = env.step(self.convert_act(0))
             else:
