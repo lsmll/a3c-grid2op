@@ -149,6 +149,9 @@ class a3cAgent(AgentWithConverter):
                 value, _ = model((cstate.unsqueeze(0)))
                 R = value.detach()
 
+            if len(values)==0:
+                continue
+
             values.append(R)
             policy_loss = 0
             value_loss = 0

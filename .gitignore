@@ -2,5 +2,5 @@ __pycache__
 *.pyc
 .vscode
 res/
-nohup.out
+nohup*.out
 runs/
