@@ -44,6 +44,11 @@ parser.add_argument('--run-name', default=None,
                     help='tensorboard log dir name.')
 parser.add_argument('--test-interval', type=int, default=60,
                     help='time in seconds between tests')
+parser.add_argument('--test-num', type=int, default=None,
+                    help='number of tests to run before saving and exiting')
+parser.add_argument('--save-path', default='model.pth',
+                    help='save name of the model')
+
 
 if __name__ == '__main__':
     os.environ['OMP_NUM_THREADS'] = '1'

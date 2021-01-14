@@ -195,6 +195,7 @@ class a3cAgent(AgentWithConverter):
 
         state = env.reset()
         reward_sum = 0
+        num_run = 0
         done = True
 
         start_time = time.time()
@@ -236,6 +237,10 @@ class a3cAgent(AgentWithConverter):
                 #actions.clear()
                 state = env.reset()
                 time.sleep(args.test_interval)
+                num_run += 1
+                if (args.test_num is not None) and (num_run >= args.test_num):
+                    torch.save(model.state_dict(), args.save_path)
+                    exit(0)
 
 
     def train(self):
@@ -256,14 +261,15 @@ class a3cAgent(AgentWithConverter):
         counter = mp.Value('i', 0)
         lock = mp.Lock()
 
-        p = mp.Process(target=self.do_test, args=(args.num_processes, args, shared_model, counter))
-        p.start()
-        processes.append(p)
+        tp = mp.Process(target=self.do_test, args=(args.num_processes, args, shared_model, counter))
+        tp.start()
+        #processes.append(p)
 
         for rank in range(0, args.num_processes):
             p = mp.Process(target=self.do_train, args=(rank, args, shared_model, counter, lock, optimizer))
             p.start()
             processes.append(p)
+        tp.join()
         for p in processes:
-            p.join()
+            p.terminate()
             
